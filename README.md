@@ -17,7 +17,7 @@ Telekinesis Tool Documentation
 
   Rotation Controls
   
-  R: Reset object's rotation to default position (removes any spinning or tilting)
+  R: Reset object's rotation to default position (removes any spinning or tilting) (Uses a bodyGyro)
 
   Force Adjustment
 
