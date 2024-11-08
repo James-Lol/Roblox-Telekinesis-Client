@@ -1,0 +1,214 @@
+local ToolName = "Telekinesis"
+local MinDistance = 5
+local MaxForce = Vector3.new(math.huge * math.huge, math.huge * math.huge, math.huge * math.huge)
+local NormalForce = Vector3.new(30000, 30000, 30000)
+local SelectionColor = Color3.fromRGB(0, 170, 255)
+
+local function CreateScriptEnvironment(ScriptObj, Callback)
+    local OriginalEnv = getfenv(Callback)
+    local CustomEnv = setmetatable({}, {
+        __index = function(self, key)
+            if key == "script" then
+                return ScriptObj
+            else
+                return OriginalEnv[key]
+            end
+        end
+    })
+    setfenv(Callback, CustomEnv)
+    return Callback
+end
+
+local ScriptsList = {}
+local ToolModel = Instance.new("Model", game:GetService("Lighting"))
+local TelekinesisTool = Instance.new("Tool")
+local HandlePart = Instance.new("Part")
+local MainScript = Instance.new("LocalScript")
+
+TelekinesisTool.Name = ToolName
+TelekinesisTool.Parent = ToolModel
+TelekinesisTool.Grip = CFrame.new(0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0)
+TelekinesisTool.GripForward = Vector3.new(0, -1, 0)
+TelekinesisTool.GripRight = Vector3.new(0, 0, 1)
+TelekinesisTool.GripUp = Vector3.new(1, 0, 0)
+
+HandlePart.Name = "Handle"
+HandlePart.Parent = TelekinesisTool
+HandlePart.CFrame = CFrame.new(-17.2635937, 15.4915619, 46, 0, 1, 0, 1, 0, 0, 0, 0, -1)
+HandlePart.Orientation = Vector3.new(0, 180, 90)
+HandlePart.Position = Vector3.new(-17.2635937, 15.4915619, 46)
+HandlePart.Rotation = Vector3.new(-180, 0, -90)
+HandlePart.Color = Color3.new(0.0666667, 0.0666667, 0.0666667)
+HandlePart.Transparency = 1
+HandlePart.Size = Vector3.new(1, 1.20000005, 1)
+HandlePart.BottomSurface = Enum.SurfaceType.Weld
+HandlePart.BrickColor = BrickColor.new("Really black")
+HandlePart.Material = Enum.Material.Metal
+HandlePart.TopSurface = Enum.SurfaceType.Smooth
+
+MainScript.Name = "MainScript"
+MainScript.Parent = TelekinesisTool
+
+table.insert(ScriptsList, CreateScriptEnvironment(MainScript, function()
+    task.wait()
+    
+    local Tool = script.Parent
+    local Handle = Tool.Handle
+    
+    local SelectedObject = nil
+    local IsMouseDown = false
+    local GrabDistance = nil
+    
+    local SelectionBox = Instance.new("SelectionBox")
+    SelectionBox.Color3 = SelectionColor
+    SelectionBox.LineThickness = 0.05
+    SelectionBox.SurfaceTransparency = 0.7
+    SelectionBox.SurfaceColor3 = SelectionColor
+    
+    local function UpdateSelectionHighlight(Object)
+        if Object then
+            SelectionBox.Adornee = Object
+            SelectionBox.Parent = Object
+        else
+            SelectionBox.Adornee = nil
+            SelectionBox.Parent = nil
+        end
+    end
+    
+    local BodyPosition = Instance.new("BodyPosition")
+    BodyPosition.maxForce = MaxForce
+    BodyPosition.P = BodyPosition.P * 1.1
+    
+    local MovementForce = BodyPosition:Clone()
+    MovementForce.maxForce = NormalForce
+    
+    local function HandleMouseDown(Mouse)
+        if IsMouseDown then return end
+        IsMouseDown = true
+        
+        while IsMouseDown do
+            if Mouse.Target then
+                local HitObject = Mouse.Target
+                if not HitObject.Anchored then
+                    SelectedObject = HitObject
+                    GrabDistance = (SelectedObject.Position - Handle.Position).magnitude
+                    UpdateSelectionHighlight(SelectedObject)
+                    break
+                end
+            end
+            task.wait()
+        end
+        
+        while IsMouseDown do
+            if SelectedObject.Parent == nil then break end
+            
+            local AimCFrame = CFrame.new(Handle.Position, Mouse.Hit.p)
+            BodyPosition.Parent = SelectedObject
+            BodyPosition.position = Handle.Position + AimCFrame.lookVector * GrabDistance
+            task.wait()
+        end
+        
+        BodyPosition:remove()
+        UpdateSelectionHighlight(nil)
+        SelectedObject = nil
+    end
+    
+    local function HandleKeyPress(Key, Mouse)
+        Key = Key:lower()
+        
+        if Key == "q" and GrabDistance >= MinDistance then
+            GrabDistance = GrabDistance - 10
+        elseif Key == "e" then
+            GrabDistance = GrabDistance + 10
+        end
+        
+        if Key == "t" then
+            GrabDistance = 10
+        elseif Key == "y" then
+            GrabDistance = 200
+        end
+        
+        if Key == "r" and SelectedObject then
+            for _, Child in pairs(SelectedObject:children()) do
+                if Child.className == "BodyGyro" then
+                    return nil
+                end
+            end
+            
+            local BodyGyro = Instance.new("BodyGyro")
+            BodyGyro.maxTorque = Vector3.new(math.huge, math.huge, math.huge)
+            BodyGyro.cframe = CFrame.new(SelectedObject.CFrame.p)
+            BodyGyro.Parent = SelectedObject
+            
+            repeat task.wait() until SelectedObject.CFrame == CFrame.new(SelectedObject.CFrame.p)
+            BodyGyro.Parent = nil
+            
+            if SelectedObject then
+                for _, Child in pairs(SelectedObject:children()) do
+                    if Child.className == "BodyGyro" then
+                        Child.Parent = nil
+                    end
+                end
+                SelectedObject.Velocity = Vector3.new(0, 0, 0)
+                SelectedObject.RotVelocity = Vector3.new(0, 0, 0)
+                SelectedObject.Orientation = Vector3.new(0, 0, 0)
+            end
+        end
+        
+        if Key == "=" then
+            BodyPosition.P = BodyPosition.P * 1.5
+        elseif Key == "-" then
+            BodyPosition.P = BodyPosition.P * 0.5
+        end
+    end
+    
+    local function OnEquipped(Mouse)
+        local Character = Tool.Parent
+        local Humanoid = Character:FindFirstChild("Humanoid")
+        
+        Humanoid.Changed:connect(function()
+            if Humanoid.Health == 0 then
+                IsMouseDown = false
+                BodyPosition:remove()
+                UpdateSelectionHighlight(nil)
+                Tool:remove()
+            end
+        end)
+        
+        Mouse.Button1Down:connect(function()
+            HandleMouseDown(Mouse)
+        end)
+        
+        Mouse.Button1Up:connect(function()
+            IsMouseDown = false
+            UpdateSelectionHighlight(nil)
+        end)
+        
+        Mouse.KeyDown:connect(function(Key)
+            HandleKeyPress(Key, Mouse)
+        end)
+        
+        Mouse.Icon = "rbxasset://textures\\GunCursor.png"
+    end
+    
+    Tool.Unequipped:connect(function()
+        UpdateSelectionHighlight(nil)
+    end)
+    
+    Tool.Equipped:connect(OnEquipped)
+end))
+
+for _, Item in pairs(ToolModel:GetChildren()) do
+    Item.Parent = game:GetService("Players").LocalPlayer.Backpack
+    pcall(function()
+        Item:MakeJoints()
+    end)
+end
+
+ToolModel:Destroy()
+
+for _, Script in pairs(ScriptsList) do
+    spawn(function()
+        pcall(Script)
+    end)
+end
