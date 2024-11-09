@@ -199,7 +199,6 @@ local function HandleKeyPress(input)
 
 			SelectedObject.Velocity = Vector3.new(0, 0, 0)
 			SelectedObject.RotVelocity = Vector3.new(0, 0, 0)
-			SelectedObject.Orientation = Vector3.new(0, 0, 0)
 		end
 	end
 
