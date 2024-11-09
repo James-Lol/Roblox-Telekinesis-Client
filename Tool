@@ -19,23 +19,21 @@ Handle.Color = Color3.new(0.5,0.5,0.5)
 Handle.Transparency = 1
 Handle.Size = Vector3.new(1, 1, 1)
 
--- Initialize services and variables
-local UIS = game:GetService("UserInputService")
+local UserInputService = game:GetService("UserInputService")
 local Players = game:GetService("Players")
-local Mouse = Players.LocalPlayer:GetMouse()
+local Camera = workspace.CurrentCamera
 
 local SelectedObject = nil
 local IsMouseDown = false
 local GrabDistance = nil
 local IsScriptActive = true
 
--- Store connections
 local Connections = {
-    InputBegan = nil,
-    InputEnded = nil,
-    HumanoidChanged = nil,
-    ToolAncestryChanged = nil,  -- New connection
-    HandleAncestryChanged = nil  -- New connection
+	InputBegan = nil,
+	InputEnded = nil,
+	HumanoidChanged = nil,
+	ToolAncestryChanged = nil,
+	HandleAncestryChanged = nil
 }
 
 local SelectionBox = Instance.new("SelectionBox")
@@ -44,14 +42,58 @@ SelectionBox.LineThickness = 0.05
 SelectionBox.SurfaceTransparency = 0.7
 SelectionBox.SurfaceColor3 = SelectionColor
 
+local RaycastParams = RaycastParams.new()
+RaycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+
+local function UpdateRaycastParams()
+	if Players.LocalPlayer.Character then
+		RaycastParams.FilterDescendantsInstances = {Tool, Players.LocalPlayer.Character}
+	else
+		RaycastParams.FilterDescendantsInstances = {Tool}
+	end
+end
+
+UpdateRaycastParams()
+
+local function PerformRaycast()
+	UpdateRaycastParams()
+	local mouseLocation = UserInputService:GetMouseLocation()
+	local ray = Camera:ViewportPointToRay(mouseLocation.X, mouseLocation.Y)
+
+	local raycastResult = workspace:Raycast(ray.Origin, ray.Direction * 1000, RaycastParams)
+	return raycastResult
+end
+
+local function GetMouseHitPosition()
+	local raycastResult = PerformRaycast()
+	if not raycastResult then return nil end
+	if not raycastResult.Position then return nil end
+	
+	return raycastResult.Position
+end
+
+local function GetMouseTarget()
+	local raycastResult = PerformRaycast()
+	return raycastResult and raycastResult.Instance or nil
+end
+
+local function CleanupConnections()
+	for _, connection in pairs(Connections) do
+		if connection then
+			connection:Disconnect()
+			connection = nil
+		end
+	end
+end
+
 local function UpdateSelectionHighlight(Object)
-    if Object then
-        SelectionBox.Adornee = Object
-        SelectionBox.Parent = Object
-    else
-        SelectionBox.Adornee = nil
-        SelectionBox.Parent = nil
-    end
+	if Object then
+		SelectionBox.Adornee = Object
+		SelectionBox.Parent = Object
+	else
+		SelectionBox.Adornee = nil
+		SelectionBox.Parent = nil
+	end
 end
 
 local BodyPosition = Instance.new("BodyPosition")
@@ -62,176 +104,170 @@ local MovementForce = BodyPosition:Clone()
 MovementForce.maxForce = NormalForce
 
 local function RemoveBodyGyro(object)
-    if object then
-        for _, Child in pairs(object:GetChildren()) do
-            if Child:IsA("BodyGyro") then
-                Child:Destroy()
-            end
-        end
-    end
+	if object then
+		for i, Child in pairs(object:GetChildren()) do
+			if Child:IsA("BodyGyro") then
+				Child:Destroy()
+			end
+			if i % 200 == 0 then
+				task.wait()
+			end
+		end
+	end
 end
 
 local function CleanupScript()
-    IsScriptActive = false
-    IsMouseDown = false
-    BodyPosition:Destroy()
-    if SelectedObject then
-        RemoveBodyGyro(SelectedObject)
-    end
-    UpdateSelectionHighlight(nil)
-    CleanupConnections()
-    if SelectionBox then
-        SelectionBox:Destroy()
-    end
-    
-    if script and typeof(script) == "Instance" then
-        script:Destroy()
-    end
+	IsScriptActive = false
+	IsMouseDown = false
+	BodyPosition:Destroy()
+	if SelectedObject then
+		RemoveBodyGyro(SelectedObject)
+	end
+	UpdateSelectionHighlight(nil)
+	CleanupConnections()
+	if SelectionBox then
+		SelectionBox:Destroy()
+	end
+
+	if script and typeof(script) == "Instance" then
+		script:Destroy()
+	end
 end
 
 local function HandleMouseDown()
-    if IsMouseDown or not IsScriptActive then return end
-    IsMouseDown = true
-    
-    while IsMouseDown and IsScriptActive do
-        if Mouse.Target then
-            local HitObject = Mouse.Target
-            if not HitObject.Anchored then
-                SelectedObject = HitObject
-                GrabDistance = (SelectedObject.Position - Handle.Position).magnitude
-                UpdateSelectionHighlight(SelectedObject)
-                break
-            end
-        end
-        task.wait()
-    end
-    
-    while IsMouseDown and IsScriptActive do
-        if SelectedObject and SelectedObject.Parent then
-            local AimCFrame = CFrame.new(Handle.Position, Mouse.Hit.p)
-            BodyPosition.Parent = SelectedObject
-            BodyPosition.position = Handle.Position + AimCFrame.lookVector * GrabDistance
-        else
-            break
-        end
-        task.wait()
-    end
-    
-    BodyPosition:remove()
-    if SelectedObject then
-        RemoveBodyGyro(SelectedObject)
-    end
-    UpdateSelectionHighlight(nil)
-    SelectedObject = nil
+	if IsMouseDown or not IsScriptActive then return end
+	IsMouseDown = true
+
+	while IsMouseDown and IsScriptActive do
+		local hitObject = GetMouseTarget()
+		if hitObject and not hitObject.Anchored then
+			SelectedObject = hitObject
+			GrabDistance = (SelectedObject.Position - Handle.Position).magnitude
+			UpdateSelectionHighlight(SelectedObject)
+			break
+		end
+		task.wait()
+	end
+
+	while IsMouseDown and IsScriptActive do
+		if SelectedObject and SelectedObject.Parent then
+			local mouseHitPos = GetMouseHitPosition()
+			if mouseHitPos then
+				local AimCFrame = CFrame.new(Handle.Position, mouseHitPos)
+				BodyPosition.Parent = SelectedObject
+				BodyPosition.position = Handle.Position + AimCFrame.lookVector * GrabDistance
+			end
+		else
+			break
+		end
+		task.wait()
+	end
+
+	BodyPosition:remove()
+	if SelectedObject then
+		RemoveBodyGyro(SelectedObject)
+	end
+	UpdateSelectionHighlight(nil)
+	SelectedObject = nil
 end
 
 local function HandleMouseUp()
-    IsMouseDown = false
-    if SelectedObject then
-        RemoveBodyGyro(SelectedObject)
-    end
-    UpdateSelectionHighlight(nil)
+	IsMouseDown = false
+	if SelectedObject then
+		RemoveBodyGyro(SelectedObject)
+	end
+	UpdateSelectionHighlight(nil)
 end
 
 local function HandleKeyPress(input)
-    if not SelectedObject or not IsScriptActive then return end
-    
-    if input.KeyCode == Enum.KeyCode.Q and GrabDistance >= MinDistance then
-        GrabDistance = GrabDistance - 10
-    elseif input.KeyCode == Enum.KeyCode.E then
-        GrabDistance = GrabDistance + 10
-    end
-    
-    if input.KeyCode == Enum.KeyCode.T then
-        GrabDistance = 10
-    elseif input.KeyCode == Enum.KeyCode.Y then
-        GrabDistance = 200
-    end
-    
-    if input.KeyCode == Enum.KeyCode.R then
-        RemoveBodyGyro(SelectedObject)
-        
-        local BodyGyro = Instance.new("BodyGyro")
-        BodyGyro.maxTorque = Vector3.new(math.huge, math.huge, math.huge)
-        BodyGyro.cframe = CFrame.new(SelectedObject.CFrame.p)
-        BodyGyro.Parent = SelectedObject
-                
-        if SelectedObject then
-            SelectedObject.Velocity = Vector3.new(0, 0, 0)
-            SelectedObject.RotVelocity = Vector3.new(0, 0, 0)
-            SelectedObject.Orientation = Vector3.new(0, 0, 0)
-        end
-    end
-    
-    if input.KeyCode == Enum.KeyCode.Equals then
-        BodyPosition.P = BodyPosition.P * 1.5
-    elseif input.KeyCode == Enum.KeyCode.Minus then
-        BodyPosition.P = BodyPosition.P * 0.5
-    end
-end
+	if not SelectedObject or not IsScriptActive then return end
 
-local function CleanupConnections()
-    for _, connection in pairs(Connections) do
-        if connection then
-            connection:Disconnect()
-            connection = nil
-        end
-    end
+	if input.KeyCode == Enum.KeyCode.Q and GrabDistance >= MinDistance then
+		GrabDistance = GrabDistance - 10
+	elseif input.KeyCode == Enum.KeyCode.E then
+		GrabDistance = GrabDistance + 10
+	end
+
+	if input.KeyCode == Enum.KeyCode.T then
+		GrabDistance = 10
+	elseif input.KeyCode == Enum.KeyCode.Y then
+		GrabDistance = 200
+	end
+
+	if input.KeyCode == Enum.KeyCode.R then
+		RemoveBodyGyro(SelectedObject)
+		if SelectedObject then
+			local BodyGyro = Instance.new("BodyGyro")
+			BodyGyro.maxTorque = Vector3.new(math.huge, math.huge, math.huge)
+			BodyGyro.cframe = CFrame.new(SelectedObject.CFrame.p)
+			BodyGyro.Parent = SelectedObject
+
+			SelectedObject.Velocity = Vector3.new(0, 0, 0)
+			SelectedObject.RotVelocity = Vector3.new(0, 0, 0)
+			SelectedObject.Orientation = Vector3.new(0, 0, 0)
+		end
+	end
+
+	if input.KeyCode == Enum.KeyCode.Equals then
+		BodyPosition.P = BodyPosition.P * 1.5
+	elseif input.KeyCode == Enum.KeyCode.Minus then
+		BodyPosition.P = BodyPosition.P * 0.5
+	end
 end
 
 local function OnEquipped()
-    local Character = Tool.Parent
-    local Humanoid = Character:FindFirstChild("Humanoid")
-    
-    Connections.InputBegan = UIS.InputBegan:Connect(function(input, gameProcessed)
-        if gameProcessed then return end
-        
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            HandleMouseDown()
-        elseif input.UserInputType == Enum.UserInputType.Keyboard then
-            HandleKeyPress(input)
-        end
-    end)
-    
-    Connections.InputEnded = UIS.InputEnded:Connect(function(input, gameProcessed)
-        if gameProcessed then return end
-        
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            HandleMouseUp()
-        end
-    end)
-    
-    Connections.HumanoidChanged = Humanoid.Changed:Connect(function()
-        if Humanoid.Health == 0 then
-            CleanupScript()
-        end
-    end)
-    
-    Mouse.Icon = "rbxasset://textures\\GunCursor.png"
+	local Character = Tool.Parent
+	local Humanoid = Character:FindFirstChild("Humanoid")
+
+	UpdateRaycastParams()
+
+	Connections.InputBegan = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+		if gameProcessed then return end
+
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			HandleMouseDown()
+		elseif input.UserInputType == Enum.UserInputType.Keyboard then
+			HandleKeyPress(input)
+		end
+	end)
+
+	Connections.InputEnded = UserInputService.InputEnded:Connect(function(input, gameProcessed)
+		if gameProcessed then return end
+
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			HandleMouseUp()
+		end
+	end)
+
+	Connections.HumanoidChanged = Humanoid.Changed:Connect(function()
+		if Humanoid.Health == 0 then
+			CleanupScript()
+		end
+	end)
 end
 
 local function OnUnequipped()
-    CleanupConnections()
-    if SelectedObject then
-        RemoveBodyGyro(SelectedObject)
-    end
-    UpdateSelectionHighlight(nil)
-    IsMouseDown = false
+	CleanupConnections()
+	if SelectedObject then
+		RemoveBodyGyro(SelectedObject)
+	end
+	UpdateSelectionHighlight(nil)
+	IsMouseDown = false
 end
 
 Tool.Equipped:Connect(OnEquipped)
 Tool.Unequipped:Connect(OnUnequipped)
 
 Connections.ToolAncestryChanged = Tool.AncestryChanged:Connect(function(_, parent)
-    if not parent then
-        CleanupScript()
-    end
+	if not parent then
+		CleanupScript()
+	end
 end)
 
 Connections.HandleAncestryChanged = Handle.AncestryChanged:Connect(function(_, parent)
-    if not parent then
-        CleanupScript()
-    end
+	if not parent then
+		CleanupScript()
+	end
 end)
 
 Tool.Destroying:Connect(CleanupScript)
