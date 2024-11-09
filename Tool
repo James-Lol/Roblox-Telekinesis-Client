@@ -155,9 +155,7 @@ local function HandleKeyPress(input)
         BodyGyro.maxTorque = Vector3.new(math.huge, math.huge, math.huge)
         BodyGyro.cframe = CFrame.new(SelectedObject.CFrame.p)
         BodyGyro.Parent = SelectedObject
-        
-        repeat task.wait() until SelectedObject.CFrame == CFrame.new(SelectedObject.CFrame.p)
-        
+                
         if SelectedObject then
             SelectedObject.Velocity = Vector3.new(0, 0, 0)
             SelectedObject.RotVelocity = Vector3.new(0, 0, 0)
