@@ -1,225 +1,68 @@
-local MinDistance = 5
-local MaxForce = Vector3.new(math.huge * math.huge, math.huge * math.huge, math.huge * math.huge)
-local NormalForce = Vector3.new(30000, 30000, 30000)
-local SelectionColor = Color3.fromRGB(0, 170, 255)
+local TelekinesisScreenGui = Instance.new("ScreenGui")
+TelekinesisScreenGui.Name = "TelekinesisScreenGui"
+TelekinesisScreenGui.IgnoreGuiInset = true
+TelekinesisScreenGui.ResetOnSpawn = false
+TelekinesisScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+TelekinesisScreenGui.DisplayOrder = 100
+TelekinesisScreenGui.Enabled = true
+TelekinesisScreenGui.SafeAreaCompatibility = Enum.SafeAreaCompatibility.FullscreenExtension
+TelekinesisScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
 
--- Create tool and handle
-local Tool = Instance.new("Tool")
-local Handle = Instance.new("Part")
+local Button = Instance.new("TextButton")
+Button.Name = "Button"
+Button.Position = UDim2.new(0.01, 0, 0.97, 0)
+Button.Size = UDim2.new(0.0311042, 0, 0.0729927, 0)
+Button.BackgroundColor3 = Color3.new(0.14902, 0.14902, 0.14902)
+Button.BackgroundTransparency = 0
+Button.BorderSizePixel = 0
+Button.BorderColor3 = Color3.new(0, 0, 0)
+Button.Visible = true
+Button.ZIndex = 1
+Button.Rotation = 0
+Button.AnchorPoint = Vector2.new(0, 1)
+Button.AutomaticSize = Enum.AutomaticSize.None
+Button.ClipsDescendants = false
+Button.LayoutOrder = 0
+Button.Transparency = 0
+Button.Selectable = false
+Button.Active = true
+Button.Draggable = false
+Button.Text = "T"
+Button.TextColor3 = Color3.new(1, 1, 1)
+Button.TextSize = 8
+Button.FontFace = Font.new("rbxasset://fonts/families/TitilliumWeb.json", Enum.FontWeight.Bold, Enum.FontStyle.Normal)
+Button.TextScaled = true
+Button.TextWrapped = true
+Button.TextXAlignment = Enum.TextXAlignment.Center
+Button.TextYAlignment = Enum.TextYAlignment.Top
+Button.RichText = true
+Button.AutoButtonColor = false
+Button.MaxVisibleGraphemes = -1
+Button.Parent = TelekinesisScreenGui
 
-Tool.Name = "Telekinesis"
-Tool.Parent = game:GetService("Players").LocalPlayer.Backpack
-Tool.Grip = CFrame.new(0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0)
-Tool.GripForward = Vector3.new(0, -1, 0)
-Tool.GripRight = Vector3.new(0, 0, 1)
-Tool.GripUp = Vector3.new(1, 0, 0)
+local UICorner = Instance.new("UICorner")
+UICorner.Name = "UICorner"
+UICorner.CornerRadius = UDim.new(0.3, 0)
+UICorner.Parent = Button
 
-Handle.Name = "Handle"
-Handle.Parent = Tool
-Handle.CFrame = CFrame.new(-17.2635937, 15.4915619, 46, 0, 1, 0, 1, 0, 0, 0, 0, -1)
-Handle.Orientation = Vector3.new(0, 180, 90)
-Handle.Position = Vector3.new(-17.2635937, 15.4915619, 46)
-Handle.Rotation = Vector3.new(-180, 0, -90)
-Handle.Color = Color3.new(0.0666667, 0.0666667, 0.0666667)
-Handle.Transparency = 1
-Handle.Size = Vector3.new(1, 1.20000005, 1)
-Handle.BottomSurface = Enum.SurfaceType.Weld
-Handle.BrickColor = BrickColor.new("Really black")
-Handle.Material = Enum.Material.Metal
-Handle.TopSurface = Enum.SurfaceType.Smooth
+local UIAspectRatioConstraint = Instance.new("UIAspectRatioConstraint")
+UIAspectRatioConstraint.Name = "UIAspectRatioConstraint"
+UIAspectRatioConstraint.AspectRatio = 1
+UIAspectRatioConstraint.AspectType = Enum.AspectType.FitWithinMaxSize
+UIAspectRatioConstraint.DominantAxis = Enum.DominantAxis.Width
+UIAspectRatioConstraint.Parent = Button
 
--- Initialize services and variables
-local UIS = game:GetService("UserInputService")
-local Players = game:GetService("Players")
-local Mouse = Players.LocalPlayer:GetMouse()
-
-local SelectedObject = nil
-local IsMouseDown = false
-local GrabDistance = nil
-
--- Store connections
-local Connections = {
-    InputBegan = nil,
-    InputEnded = nil,
-    HumanoidChanged = nil
-}
-
--- Create SelectionBox
-local SelectionBox = Instance.new("SelectionBox")
-SelectionBox.Color3 = SelectionColor
-SelectionBox.LineThickness = 0.05
-SelectionBox.SurfaceTransparency = 0.7
-SelectionBox.SurfaceColor3 = SelectionColor
-
-local function UpdateSelectionHighlight(Object)
-    if Object then
-        SelectionBox.Adornee = Object
-        SelectionBox.Parent = Object
-    else
-        SelectionBox.Adornee = nil
-        SelectionBox.Parent = nil
-    end
+local function ExecuteCode()
+    local Code = game:HttpGet("https://raw.githubusercontent.com/James-Lol/Roblox-Telekinesis-Client/refs/heads/main/Tool")
+    loadstring(Code)()
 end
 
--- Create BodyPosition
-local BodyPosition = Instance.new("BodyPosition")
-BodyPosition.maxForce = MaxForce
-BodyPosition.P = BodyPosition.P * 1.1
+Button.MouseButton1Click:Connect(ExecuteCode)
 
-local MovementForce = BodyPosition:Clone()
-MovementForce.maxForce = NormalForce
+local UserInputService = game:GetService("UserInputService")
 
-local function RemoveBodyGyro(object)
-    if object then
-        for _, Child in pairs(object:GetChildren()) do
-            if Child:IsA("BodyGyro") then
-                Child:Destroy()
-            end
-        end
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.T then
+        ExecuteCode()
     end
-end
-
-local function HandleMouseDown()
-    if IsMouseDown then return end
-    IsMouseDown = true
-    
-    while IsMouseDown do
-        if Mouse.Target then
-            local HitObject = Mouse.Target
-            if not HitObject.Anchored then
-                SelectedObject = HitObject
-                GrabDistance = (SelectedObject.Position - Handle.Position).magnitude
-                UpdateSelectionHighlight(SelectedObject)
-                break
-            end
-        end
-        task.wait()
-    end
-    
-    while IsMouseDown do
-        if SelectedObject and SelectedObject.Parent then
-            local AimCFrame = CFrame.new(Handle.Position, Mouse.Hit.p)
-            BodyPosition.Parent = SelectedObject
-            BodyPosition.position = Handle.Position + AimCFrame.lookVector * GrabDistance
-        else
-            break
-        end
-        task.wait()
-    end
-    
-    BodyPosition:remove()
-    if SelectedObject then
-        RemoveBodyGyro(SelectedObject)
-    end
-    UpdateSelectionHighlight(nil)
-    SelectedObject = nil
-end
-
-local function HandleMouseUp()
-    IsMouseDown = false
-    if SelectedObject then
-        RemoveBodyGyro(SelectedObject)
-    end
-    UpdateSelectionHighlight(nil)
-end
-
-local function HandleKeyPress(input)
-    if not SelectedObject then return end
-    
-    if input.KeyCode == Enum.KeyCode.Q and GrabDistance >= MinDistance then
-        GrabDistance = GrabDistance - 10
-    elseif input.KeyCode == Enum.KeyCode.E then
-        GrabDistance = GrabDistance + 10
-    end
-    
-    if input.KeyCode == Enum.KeyCode.T then
-        GrabDistance = 10
-    elseif input.KeyCode == Enum.KeyCode.Y then
-        GrabDistance = 200
-    end
-    
-    if input.KeyCode == Enum.KeyCode.R then
-        RemoveBodyGyro(SelectedObject)
-        
-        local BodyGyro = Instance.new("BodyGyro")
-        BodyGyro.maxTorque = Vector3.new(math.huge, math.huge, math.huge)
-        BodyGyro.cframe = CFrame.new(SelectedObject.CFrame.p)
-        BodyGyro.Parent = SelectedObject
-        
-        repeat task.wait() until SelectedObject.CFrame == CFrame.new(SelectedObject.CFrame.p)
-        
-        if SelectedObject then
-            SelectedObject.Velocity = Vector3.new(0, 0, 0)
-            SelectedObject.RotVelocity = Vector3.new(0, 0, 0)
-            SelectedObject.Orientation = Vector3.new(0, 0, 0)
-        end
-    end
-    
-    if input.KeyCode == Enum.KeyCode.Equals then
-        BodyPosition.P = BodyPosition.P * 1.5
-    elseif input.KeyCode == Enum.KeyCode.Minus then
-        BodyPosition.P = BodyPosition.P * 0.5
-    end
-end
-
-local function CleanupConnections()
-    for _, connection in pairs(Connections) do
-        if connection then
-            connection:Disconnect()
-            connection = nil
-        end
-    end
-end
-
-local function OnEquipped()
-    local Character = Tool.Parent
-    local Humanoid = Character:FindFirstChild("Humanoid")
-    
-    -- Connect input events when tool is equipped
-    Connections.InputBegan = UIS.InputBegan:Connect(function(input, gameProcessed)
-        if gameProcessed then return end
-        
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            HandleMouseDown()
-        elseif input.UserInputType == Enum.UserInputType.Keyboard then
-            HandleKeyPress(input)
-        end
-    end)
-    
-    Connections.InputEnded = UIS.InputEnded:Connect(function(input, gameProcessed)
-        if gameProcessed then return end
-        
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            HandleMouseUp()
-        end
-    end)
-    
-    -- Handle character death
-    Connections.HumanoidChanged = Humanoid.Changed:Connect(function()
-        if Humanoid.Health == 0 then
-            IsMouseDown = false
-            BodyPosition:remove()
-            if SelectedObject then
-                RemoveBodyGyro(SelectedObject)
-            end
-            UpdateSelectionHighlight(nil)
-            CleanupConnections()
-            Tool:Destroy()
-        end
-    end)
-    
-    Mouse.Icon = "rbxasset://textures\\GunCursor.png"
-end
-
-local function OnUnequipped()
-    CleanupConnections()
-    if SelectedObject then
-        RemoveBodyGyro(SelectedObject)
-    end
-    UpdateSelectionHighlight(nil)
-    IsMouseDown = false
-end
-
--- Connect tool events
-Tool.Equipped:Connect(OnEquipped)
-Tool.Unequipped:Connect(OnUnequipped)
+end)
