@@ -1,13 +1,19 @@
-local MinDistance = 3
-local MaxForce = Vector3.new(math.huge * math.huge, math.huge * math.huge, math.huge * math.huge)
+local MinDistance = 4
+local MaxForce = Vector3.new(math.huge, math.huge, math.huge)
 local NormalForce = Vector3.new(30000, 30000, 30000)
 local SelectionColor = Color3.fromRGB(0, 170, 255)
+
+local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local Camera = workspace.CurrentCamera
+
+local LocalPlayer = Players.LocalPlayer
 
 local Tool = Instance.new("Tool")
 local Handle = Instance.new("Part")
 
 Tool.Name = "Telekinesis"
-Tool.Parent = game:GetService("Players").LocalPlayer.Backpack
+Tool.Parent = LocalPlayer.Backpack
 Tool.Grip = CFrame.new(0, 0, 0, 0, 1, 0, 0, 0, 1, 1, 0, 0)
 Tool.GripForward = Vector3.new(0, -1, 0)
 Tool.GripRight = Vector3.new(0, 0, 1)
@@ -18,10 +24,6 @@ Handle.Parent = Tool
 Handle.Color = Color3.new(0.5,0.5,0.5)
 Handle.Transparency = 1
 Handle.Size = Vector3.new(1, 1, 1)
-
-local UserInputService = game:GetService("UserInputService")
-local Players = game:GetService("Players")
-local Camera = workspace.CurrentCamera
 
 local SelectedObject = nil
 local IsMouseDown = false
@@ -43,20 +45,18 @@ SelectionBox.SurfaceTransparency = 0.7
 SelectionBox.SurfaceColor3 = SelectionColor
 
 local RaycastParams = RaycastParams.new()
-RaycastParams.FilterType = Enum.RaycastFilterType.Blacklist
+RaycastParams.FilterType = Enum.RaycastFilterType.Exclude
+RaycastParams.IgnoreWater = true
+RaycastParams.RespectCanCollide = false
+RaycastParams.FilterDescendantsInstances = {Tool, LocalPlayer.Character}
 
-local function UpdateRaycastParams()
-	if Players.LocalPlayer.Character then
-		RaycastParams.FilterDescendantsInstances = {Tool, Players.LocalPlayer.Character}
+local function PerformRaycast()
+	if LocalPlayer.Character then
+		RaycastParams.FilterDescendantsInstances = {Tool, LocalPlayer.Character}
 	else
 		RaycastParams.FilterDescendantsInstances = {Tool}
 	end
-end
-
-UpdateRaycastParams()
-
-local function PerformRaycast()
-	UpdateRaycastParams()
+	
 	local mouseLocation = UserInputService:GetMouseLocation()
 	local ray = Camera:ViewportPointToRay(mouseLocation.X, mouseLocation.Y)
 
@@ -66,10 +66,7 @@ end
 
 local function GetMouseHitPosition()
 	local raycastResult = PerformRaycast()
-	if not raycastResult then return nil end
-	if not raycastResult.Position then return nil end
-	
-	return raycastResult.Position
+	return raycastResult and raycastResult.Position or Camera.CFrame.Position + Camera.CFrame.LookVector * 1000
 end
 
 local function GetMouseTarget()
@@ -152,11 +149,9 @@ local function HandleMouseDown()
 	while IsMouseDown and IsScriptActive do
 		if SelectedObject and SelectedObject.Parent then
 			local mouseHitPos = GetMouseHitPosition()
-			if mouseHitPos then
-				local AimCFrame = CFrame.new(Handle.Position, mouseHitPos)
-				BodyPosition.Parent = SelectedObject
-				BodyPosition.position = Handle.Position + AimCFrame.lookVector * GrabDistance
-			end
+			local AimCFrame = CFrame.new(Handle.Position, mouseHitPos)
+			BodyPosition.Parent = SelectedObject
+			BodyPosition.position = Handle.Position + AimCFrame.lookVector * GrabDistance
 		else
 			break
 		end
@@ -216,10 +211,6 @@ local function HandleKeyPress(input)
 end
 
 local function OnEquipped()
-	local Character = Tool.Parent
-	local Humanoid = Character:FindFirstChild("Humanoid")
-
-	UpdateRaycastParams()
 
 	Connections.InputBegan = UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		if gameProcessed then return end
@@ -239,6 +230,9 @@ local function OnEquipped()
 		end
 	end)
 
+	local Character = LocalPlayer.Character
+	local Humanoid = Character:FindFirstChildWhichIsA("Humanoid")
+	
 	Connections.HumanoidChanged = Humanoid.Changed:Connect(function()
 		if Humanoid.Health == 0 then
 			CleanupScript()
