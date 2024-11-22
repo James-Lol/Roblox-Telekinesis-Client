@@ -1,4 +1,7 @@
-if game.Players.LocalPlayer.PlayerGui:FindFirstChild("TelekinesisScreenGui") then return end
+local ParentModule = loadstring(game:HttpGet("https://raw.githubusercontent.com/James-Lol/Roblox-Telekinesis-Client/refs/heads/main/GetParentModule"))()
+local PrivateGui = ParentModule.GetParent()
+
+if PrivateGui:FindFirstChild("TelekinesisScreenGui") then return end
 
 local TelekinesisScreenGui = Instance.new("ScreenGui")
 TelekinesisScreenGui.Name = "TelekinesisScreenGui"
@@ -8,7 +11,7 @@ TelekinesisScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 TelekinesisScreenGui.DisplayOrder = 100
 TelekinesisScreenGui.Enabled = true
 TelekinesisScreenGui.SafeAreaCompatibility = Enum.SafeAreaCompatibility.FullscreenExtension
-TelekinesisScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
+TelekinesisScreenGui.Parent = PrivateGui
 
 local Button = Instance.new("TextButton")
 Button.Name = "Button"
