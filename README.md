@@ -13,13 +13,8 @@ Telekinesis Tool Documentation
   Q: Bring object closer (decrease distance by 10 studs)
   E: Move object farther away (increase distance by 10 studs)
   T: Quick set distance to 10 studs (close range)
-  Y: Quick set distance to 200 studs (long range)
+  Y or Z: Quick set distance to 200 studs (long range) (Throw)
 
   Rotation Controls
   
   R: Reset object's rotation to default position (removes any spinning or tilting) (Uses a bodyGyro)
-
-  Force Adjustment
-
-  +: Increase manipulation force (makes movement more rigid)
-  -: Decrease manipulation force (makes movement more loose)
